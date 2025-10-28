@@ -8,10 +8,13 @@ type ErrorResponse = {
 
 const CACHE_KEY = "deals";
 const CACHE_DURATION_MS = 5 * 60 * 1000;
-const BITRIX_ENDPOINT =
-  "https://alvo.bitrix24.com.br/rest/1/eaobyuxthmnk5ul/crm.deal.list.json" +
+const BITRIX_USER_ID = process.env.BITRIX_USER_ID;
+const BITRIX_TOKEN = process.env.BITRIX_TOKEN;
+
+const BITRIX_ENDPOINT = `https://alvo.bitrix24.com.br/rest/${BITRIX_USER_ID}/${BITRIX_TOKEN}/crm.deal.list.json` +
   "?select[]=ID&select[]=TITLE&select[]=ASSIGNED_BY_NAME&select[]=STAGE_ID" +
   "&select[]=OPPORTUNITY&select[]=PROBABILITY&select[]=DATE_MODIFY";
+
 
 export default async function handler(
   req: NextApiRequest,
