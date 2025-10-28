@@ -7,14 +7,16 @@ type ErrorResponse = {
 };
 
 const CACHE_KEY = "deals";
-const CACHE_DURATION_MS = 5 * 60 * 1000;
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutos
+
+// ⚙️ Variáveis de ambiente (configuradas em .env.local ou no painel da Vercel)
 const BITRIX_USER_ID = process.env.BITRIX_USER_ID;
 const BITRIX_TOKEN = process.env.BITRIX_TOKEN;
 
+// 🚀 Monta a URL dinamicamente, sem deixar o token exposto
 const BITRIX_ENDPOINT = `https://alvo.bitrix24.com.br/rest/${BITRIX_USER_ID}/${BITRIX_TOKEN}/crm.deal.list.json` +
   "?select[]=ID&select[]=TITLE&select[]=ASSIGNED_BY_NAME&select[]=STAGE_ID" +
   "&select[]=OPPORTUNITY&select[]=PROBABILITY&select[]=DATE_MODIFY";
-
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,11 +28,13 @@ export default async function handler(
       return res.status(405).json({ error: "Method Not Allowed" });
     }
 
+    // 🔁 Cache local (evita bater na API Bitrix a cada requisição)
     const cachedDeals = cache.get(CACHE_KEY) as Deal[] | undefined;
     if (cachedDeals) {
       return res.status(200).json(cachedDeals);
     }
 
+    // 🌐 Consulta Bitrix24
     const response = await fetch(BITRIX_ENDPOINT);
 
     if (!response.ok) {
@@ -40,6 +44,7 @@ export default async function handler(
     const data = await response.json();
     const deals: Deal[] = data?.result ?? [];
 
+    // 💾 Salva no cache por 5 minutos
     cache.put(CACHE_KEY, deals, CACHE_DURATION_MS);
 
     return res.status(200).json(deals);
