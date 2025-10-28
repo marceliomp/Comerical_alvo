@@ -18,16 +18,25 @@ const BITRIX_FIELDS = [
   "DATE_MODIFY",
 ] as const;
 
-const buildDealsEndpoint = (): string | null => {
-  const webhookUrl = process.env.BITRIX_WEBHOOK_URL;
-  if (!webhookUrl) {
+const ensureDealsEndpoint = (rawUrl: string): string | null => {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
     return null;
   }
 
   try {
-    const url = new URL(webhookUrl);
+    const needsMethodSuffix = !/\.json($|\?)/.test(trimmed);
+    const withMethod = needsMethodSuffix
+      ? `${trimmed.replace(/\/+$/, "")}/crm.deal.list.json`
+      : trimmed;
+
+    const url = new URL(withMethod);
+
+    const existingSelects = url.searchParams.getAll("select[]");
     BITRIX_FIELDS.forEach((field) => {
-      url.searchParams.append("select[]", field);
+      if (!existingSelects.includes(field)) {
+        url.searchParams.append("select[]", field);
+      }
     });
     return url.toString();
   } catch (error) {
@@ -46,7 +55,8 @@ export default async function handler(
       return res.status(405).json({ error: "Method Not Allowed" });
     }
 
-    const endpoint = buildDealsEndpoint();
+    const rawWebhook = process.env.BITRIX_WEBHOOK_URL ?? "";
+    const endpoint = ensureDealsEndpoint(rawWebhook);
     if (!endpoint) {
       return res
         .status(503)
