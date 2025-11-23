@@ -45,6 +45,22 @@ const ensureDealsEndpoint = (rawUrl: string): string | null => {
   }
 };
 
+const fetchWithTimeout = async (endpoint: string, timeoutMs = 10000) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(endpoint, { signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+export const config = {
+  runtime: "nodejs",
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Deal[] | ErrorResponse>
@@ -58,9 +74,10 @@ export default async function handler(
     const rawWebhook = process.env.BITRIX_WEBHOOK_URL ?? "";
     const endpoint = ensureDealsEndpoint(rawWebhook);
     if (!endpoint) {
-      return res
-        .status(503)
-        .json({ error: "Webhook do Bitrix não configurado. Defina BITRIX_WEBHOOK_URL." });
+      return res.status(503).json({
+        error:
+          "Webhook do Bitrix não configurado ou inválido. Defina BITRIX_WEBHOOK_URL (ex.: https://seu_dominio.bitrix24.com.br/rest/1/SEU_TOKEN/).",
+      });
     }
 
     const cachedDeals = cache.get(CACHE_KEY) as Deal[] | undefined;
@@ -68,10 +85,12 @@ export default async function handler(
       return res.status(200).json(cachedDeals);
     }
 
-    const response = await fetch(endpoint);
+    const response = await fetchWithTimeout(endpoint);
 
     if (!response.ok) {
-      throw new Error(`Bitrix24 respondeu com status ${response.status}`);
+      throw new Error(
+        `Bitrix24 respondeu com status ${response.status} (${response.statusText}). Verifique se o webhook possui permissão de leitura de negócios.`
+      );
     }
 
     const data = await response.json();

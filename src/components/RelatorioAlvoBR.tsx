@@ -10,9 +10,11 @@ export default function RelatorioAlvoBR() {
 
   useEffect(() => {
     fetch("/api/bitrix/deals")
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) {
-          throw new Error("Falha ao carregar dados do Bitrix");
+          const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+          const serverMessage = payload?.error;
+          throw new Error(serverMessage ?? "Falha ao carregar dados do Bitrix");
         }
         return res.json();
       })
@@ -36,8 +38,13 @@ export default function RelatorioAlvoBR() {
 
   if (error) {
     return (
-      <div className="p-8 text-center text-red-500">
-        Ocorreu um erro ao carregar os dados: {error}
+      <div className="p-8 text-center text-red-600 space-y-2">
+        <p className="font-semibold">Ocorreu um erro ao carregar os dados.</p>
+        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-xs text-gray-500">
+          Confira se a variável <code className="font-mono">BITRIX_WEBHOOK_URL</code> está definida no Vercel (.env) e se o token
+          possui acesso de leitura aos negócios.
+        </p>
       </div>
     );
   }
